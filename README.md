@@ -1,3 +1,11 @@
+# message_system
+This is a simple **example** of a **type-safe** message-passing system.
+This is only a convenient to be able to declare messages and some 
+type-safety checks that handlers are defined
+
+
+## Short Example
+```c++
 #include <iostream>
 #include "message_system.h"
 
@@ -48,4 +56,4 @@ int main() {
     test.handle(msg);
 }
 
-
+```

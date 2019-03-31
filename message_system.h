@@ -6,10 +6,10 @@
     template<> struct message_system::MessageIdToType<Domain::ID> { using type = Name;};    \
     struct Name : message_system::IMessge<Domain::ID, Name>
 
-#define DECLARE_MESSAGE(Domain, Name)                                                                       \
-    struct Message##Name;                                                                                   \
-    template<> struct message_system::MessageIdToType<Domain::Name> { using type = Message##Name;};         \
-    struct Message##Name : message_system::IMessge<Domain::Name, Message##Name>
+#define MESSAGE_SYSTEM_DECLARE(Domain, Name)                                                               \
+    struct Domain##Name;                                                                                   \
+    template<> struct message_system::MessageIdToType<Domain::Name> { using type = Domain##Name;};         \
+    struct Domain##Name : message_system::IMessge<Domain::Name, Domain##Name>
 
 
 namespace message_system {
@@ -33,18 +33,15 @@ template<auto id> struct MessageIdToType {};
 
 template<typename Class, typename Domain>
 class System {
-    std::array<void(System::*)(const MessageBase<Domain>* msg), static_cast<size_t>(Domain::COUNT)> handlers;
+    std::array<void(*)(System*, const MessageBase<Domain>* msg), static_cast<size_t>(Domain::COUNT)> handlers;
 
-    template<Domain realId>
-    void OnMessageHandler(const MessageBase<Domain>* msg) {
-        using RealMsgType = typename MessageIdToType<realId>::type;
-        const auto realMessage = static_cast<const RealMsgType*>(msg);
-        return static_cast<Class*>(this)->OnMessage(realMessage);
-    }
-
-    template<Domain I>
+    template<Domain Id>
     bool init_helper() {
-        handlers[static_cast<size_t>(I)] = OnMessageHandler<I>;
+        handlers[static_cast<size_t>(Id)] = [] (System* system, const MessageBase<Domain>* msg) {
+            using RealMsgType = typename MessageIdToType<Id>::type;
+            const auto realMessage = static_cast<const RealMsgType*>(msg);
+            return static_cast<Class*>(system)->OnMessage(realMessage);
+        };
         return true;
     }
 
@@ -66,18 +63,20 @@ public:
         const size_t id = static_cast<size_t>(msg->GetId());
         if (0 <= id && id < static_cast<size_t>(Domain::COUNT)) {
             auto handler = handlers[id];
-            (this->*handler)(msg);
+            handler(this, msg);
+            //(this->*handler)(msg);
         } else {
             onError(id, msg);
         }
     }
 
-    void onError(size_t id, const MessageBase<Domain>* msg) { }
+    virtual void onError(size_t , const MessageBase<Domain>*){}
 
 
     System () {
         init_handlers<Domain>();
     }
+    virtual ~System() {}
 };
 
 } // namespace message_system
